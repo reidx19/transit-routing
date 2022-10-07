@@ -39,7 +39,6 @@ def extract_graph(NETWORK_NAME: str, breaker: str) -> tuple:
     print(breaker)
     return G, stops_list
 
-
 def parallel_func(source_info: tuple) -> list:
     """
     Runs shortest path algorithm from source stop with cutoff limit of WALKING_LIMIT * 2

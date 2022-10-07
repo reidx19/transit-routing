@@ -242,7 +242,7 @@ def filter_stopsfile(stops_map, stops):
     return stops
 
 
-def rename_route(stop_times, trips) -> tuple:
+def rename_route(stop_times, trips, route) -> tuple:
     """
     Rename the route Id to integer. Route Id are assumed to start from 1000.
 
@@ -268,12 +268,18 @@ def rename_route(stop_times, trips) -> tuple:
         route_map[x] = stops_dict_rev[route_seq]
     # Update new route_id in stoptimes file
     route_map_db = pd.DataFrame(route_map.items(), columns=['trip_id', 'new_route_id'])
-    stop_times = pd.merge(stop_times, route_map_db, on='trip_id').drop(columns=['route_id']).rename(
+    stop_times = pd.merge(stop_times, route_map_db, on='trip_id')
+    #old/new route id map
+    new_route_ids = stop_times[['route_id','new_route_id']].drop_duplicates()
+    #drop old route id
+    stop_times = stop_times.drop(columns=['route_id']).rename(
         columns={'new_route_id': 'route_id'})
     trips = pd.merge(trips, route_map_db, on='trip_id').drop(columns=['route_id']).rename(
         columns={'new_route_id': 'route_id'})
+    #change route id on route.txt
+    route = pd.merge(route,new_route_ids,on='route_id')
     print(breaker)
-    return route_map_db, stop_times, trips
+    return route_map_db, stop_times, trips, route
 
 
 def rename_trips(stop_times, trips):
@@ -435,8 +441,7 @@ def filter_trips(trips, stop_times, stops):
     print(breaker)
     return trips, stop_times, stops
 
-
-def save_final(SAVE_PATH: str, trips, stop_times, stops) -> None:
+def save_final(SAVE_PATH: str, trips, stop_times, stops, route) -> None:
     """
     Save the final GTFS set and print statistics
 
@@ -456,6 +461,7 @@ def save_final(SAVE_PATH: str, trips, stop_times, stops) -> None:
     stops.to_csv(f'{SAVE_PATH}/stops.txt', index=False)
     stops.to_csv(f'{SAVE_PATH}/stops.csv', index=False)
     trips.to_csv(f'{SAVE_PATH}/trips.txt', index=False)
+    route.to_csv(f'{SAVE_PATH}/route.txt')
     #####################################
     # Print final statistics
     print(f'Final stops count    : {len(stops)}')
@@ -479,13 +485,13 @@ def main() -> None:
     trips, valid_trips, valid_route = filter_trips_routes_ondates(valid_routes, calendar_dates, calendar, trips, DATE_TOFILTER_ON)
     stops_map, stop_times = filter_stoptimes(valid_trips, trips, DATE_TOFILTER_ON, stop_times)
     stops = filter_stopsfile(stops_map, stops)
-    route_map_db, stop_times, trips = rename_route(stop_times, trips)
+    route_map_db, stop_times, trips, route = rename_route(stop_times, trips, route)
     stop_times, trips = rename_trips(stop_times, trips)
     stop_times, trips = remove_overlapping_trips(stop_times, trips)
     check_trip_len(stop_times)
     stop_times = stoptimes_filter(stop_times)
     trips, stop_times, stops = filter_trips(trips, stop_times, stops)
-    save_final(SAVE_PATH, trips, stop_times, stops)
+    save_final(SAVE_PATH, trips, stop_times, stops, route)
     return None
     # build_transfers_file(READ_PATH, stops, WALKING_LIMIT, transfer)
 
