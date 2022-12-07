@@ -115,6 +115,6 @@ def raptor(SOURCE: int, DESTINATION: int, D_TIME, MAX_TRANSFER: int, WALKING_FRO
                 # print('code ended with termination condition')
                 pass
             break
-    _, _, rap_out = post_processing(DESTINATION, pi_label, PRINT_ITINERARY, label)
+    _, _, rap_out, edge_list = post_processing(DESTINATION, pi_label, PRINT_ITINERARY, label)
     out.append(rap_out)
-    return out
+    return out, edge_list
