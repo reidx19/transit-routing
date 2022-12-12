@@ -50,15 +50,6 @@ def map_routes(selected_trips,impedance_col,snapped_tazs,snapped_stops,shape_map
         with open(selected_trip,'rb') as fh:
             trip_dict = pickle.load(fh)
     
-        # #process text
-        # file_path = os.path.split(selected_trip)[-1].split('.pkl')[0]
-    
-        # #get taz name
-        # start_taz = file_path.split('_')[0]
-        
-        # #get start time
-        # trip_time = file_path.split('_',1)[1]
-    
         #process text
         file_path = os.path.split(selected_trip)[-1].split('.pkl')[0]
         

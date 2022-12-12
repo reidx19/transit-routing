@@ -90,49 +90,39 @@ def run_raptor(all_trips,impedance_col,raptor_settings):
             #import trips file
             trips = pd.read_parquet(trip)
             
-            #get start taz name
-            taz_name = str(trips['src_taz'][0])
+            if trips.shape[0] == 0:
+                print(f'No trips possible from {trip}')
+            else:
             
-            #get actual first leg time
-            trips['first_leg'] = pd.to_timedelta(trips['first_leg'] / 5280 / bikespd * 60 * 60, unit='s')
-        
-            #find actual final leg time
-            trips['last_leg'] = pd.to_timedelta(trips['last_leg'] / 5280 / bikespd * 60 * 60, unit='s')
-        
-            #get first arrival time (needs to be actual time)
-            trips['arrival_time'] = start_time + trips['first_leg']
-        
-            #create trip dict to put final results in
-            trip_dict = {}
+                #get start taz name
+                taz_name = str(trips['src_taz'][0])
+                
+                #get actual first leg time
+                trips['first_leg'] = pd.to_timedelta(trips['first_leg'] / 5280 / bikespd * 60 * 60, unit='s')
             
-            # #bring in exclude trips if it exists
-            # if os.path.exists(r'C:\Users\tpassmore6\Documents\TransitSimData\Data\exclude_trips.pkl'):
-            #     with open(r'C:\Users\tpassmore6\Documents\TransitSimData\Data\exclude_trips.pkl','rb') as fh:
-            #         exclude_routes = pickle.load(fh)
-            #     trips['exclude_check'] = list(zip(trips['src_stop'],trips['dest_stop']))
-            #     trips = trips[-trips['exclude_check'].isin(exclude_routes)]
-            #     trips.drop(columns=['exclude_check'],inplace=True)
-            # else:
-            #     exclude_routes = set()
-        
-            #if trips is empty check    
-            if trips.shape[0] > 0:
-                #TODO find more efficient way to do this
-                for idx, row in tqdm(trips.iterrows(),total=trips.shape[0]):
-                # for idx, row in tqdm(trips.iterrows(),total=trips.shape[0]):
-                  
-                    SOURCE = int(row['src_stop'])
-                    DESTINATION = int(row['dest_stop'])
-                    D_TIME = row['arrival_time']
-                    
-                    output, pareto_optimal = raptor(SOURCE, DESTINATION, D_TIME, raptor_settings['MAX_TRANSFER'], 
-                                    raptor_settings['WALKING_FROM_SOURCE'], raptor_settings['CHANGE_TIME_SEC'], raptor_settings['PRINT_ITINERARY'],
-                                    routes_by_stop_dict, stops_dict, stoptimes_dict, footpath_dict, idx_by_route_stop_dict)
-                    
-                    if pareto_optimal == None:
-                        pareto_optimal;
-                        #exclude_routes.add((SOURCE,DESTINATION))
-                    else:
+                #find actual final leg time
+                trips['last_leg'] = pd.to_timedelta(trips['last_leg'] / 5280 / bikespd * 60 * 60, unit='s')
+            
+                #get first arrival time (needs to be actual time)
+                trips['arrival_time'] = start_time + trips['first_leg']
+            
+                #create trip dict to put final results in
+                trip_dict = {}
+            
+                #if trips is empty check    
+                if trips.shape[0] > 0:
+                    #TODO find more efficient way to do this
+                    for idx, row in tqdm(trips.iterrows(),total=trips.shape[0]):
+                      
+                        SOURCE = int(row['src_stop'])
+                        DESTINATION = int(row['dest_stop'])
+                        D_TIME = row['arrival_time']
+                        
+                        output, pareto_optimal = raptor(SOURCE, DESTINATION, D_TIME, raptor_settings['MAX_TRANSFER'], 
+                                        raptor_settings['WALKING_FROM_SOURCE'], raptor_settings['CHANGE_TIME_SEC'], raptor_settings['PRINT_ITINERARY'],
+                                        routes_by_stop_dict, stops_dict, stoptimes_dict, footpath_dict, idx_by_route_stop_dict)
+                        
+    
                         if pareto_optimal != None:
                             #get number of transfers
                             num_transfers = pareto_optimal[0][0]
@@ -199,28 +189,28 @@ def run_raptor(all_trips,impedance_col,raptor_settings):
                                     else:
                                         trip_dict[row['src_taz'],row['dest_taz']] = (edge_list,transit_time,travel_time,SOURCE,DESTINATION,num_transfers)
                                         
-                #get trips that aren't feasible with transit 
-                not_possible = [x for x in set(trips.dest_taz) if x not in [x[1] for x in trip_dict.keys()]]
-                
-                #get run time
-                run_time_transit = round(((time.time() - time_start)/60), 2)        
-                metadata = {'not_possible':not_possible,'run_time':run_time_transit}
-                
-                #make file name
-                time_name = f'{start_time.hour}_{start_time.minute}'
-                flm_mode = raptor_settings['flm_mode']
-                
-                #create new folder
-                if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}'):
-                    os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}')
-                if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}'):
-                    os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}')
-                
-                #export trip dict and metadata
-                with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}\{taz_name}_{time_name}_{flm_mode}.pkl','wb') as fh:
-                    pickle.dump(trip_dict,fh)
-                with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}\{taz_name}_{time_name}_{flm_mode}.pkl','wb') as fh:
-                    pickle.dump(metadata,fh)
+                    #get trips that aren't feasible with transit 
+                    not_possible = [x for x in set(trips.dest_taz) if x not in [x[1] for x in trip_dict.keys()]]
+                    
+                    #get run time
+                    run_time_transit = round(((time.time() - time_start)/60), 2)        
+                    metadata = {'not_possible':not_possible,'run_time':run_time_transit}
+                    
+                    #make file name
+                    time_name = f'{start_time.hour}_{start_time.minute}'
+                    flm_mode = raptor_settings['flm_mode']
+                    
+                    #create new folder
+                    if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}'):
+                        os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}')
+                    if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}'):
+                        os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}')
+                    
+                    #export trip dict and metadata
+                    with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}\{taz_name}_{time_name}_{flm_mode}.pkl','wb') as fh:
+                        pickle.dump(trip_dict,fh)
+                    with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}\{taz_name}_{time_name}_{flm_mode}.pkl','wb') as fh:
+                        pickle.dump(metadata,fh)
             
             # #export exclude routes
             # with open(r'C:\Users\tpassmore6\Documents\TransitSimData\Data\exclude_trips.pkl','wb') as fh:
@@ -263,35 +253,15 @@ raptor_settings = {
     'flm_mode':'bike'
     }
             
-#%% troubleshooting
-
-#
-# trip = pd.read_parquet('C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/dist/walk/411.parquet')
-# trip = trip[trip['dest_taz']=='782']
-
-#%% first do dist
-
-# import trips
-#use this if you want them all
-#all_trips = glob.glob(os.path.join(trips_dir,"*.parquet"))
 impedance_col = raptor_settings['impedance_col']
 flm_mode = raptor_settings['flm_mode']
 trips_dir = os.fspath(rf'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/{impedance_col}/{flm_mode}')
 
 #selected trips
-select_tazs = ['553','411','1326','1071']
+select_tazs = ['288']#['553','411','1326','1071']
 all_trips = [ trips_dir + rf'/{taz}.parquet' for taz in select_tazs]
 
-
-
 run_raptor(all_trips,impedance_col,raptor_settings)
-
-#%% get bikesheds
-
-
-#tazs = glob.glob(os.path.join(trips_dir,rf"{impedance_col}/*.pkl"))
-#tazs= glob.glob(os.path.join(trips_dir,rf"{impedance_col}/*/*/*.pkl"))
-
 
 
 #%% just walking
@@ -317,75 +287,69 @@ raptor_settings = {
     'flm_mode': 'walk'
     }
             
-
-#%% first do dist
-
 # import trips
 trips_dir = os.fspath(r'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/dist')
-#use this if you want them all
-#all_trips = glob.glob(os.path.join(trips_dir,"*.parquet"))
 impedance_col = 'dist'
 
 #selected trips
-select_tazs = ['411']#['553','411','1326','1071']
-all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/dist\\{taz}.parquet' for taz in select_tazs]
+select_tazs = ['288']#['553','411','1326','1071']
+all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/dist/walk/{taz}.parquet' for taz in select_tazs]
 
 run_raptor(all_trips,impedance_col,raptor_settings)
 
 
-
-
-
-
 #%% get bikesheds
 #left off here
-import pandas as pd
-import os
+# import pandas as pd
+# import os
 
-impedance_col = 'dist'
-trips_dir = os.fspath('C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts')
-tazs= glob.glob(os.path.join(trips_dir,rf"{impedance_col}/*.pkl"))
+# impedance_col = 'dist'
+# trips_dir = os.fspath('C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts')
+# tazs= glob.glob(os.path.join(trips_dir,rf"{impedance_col}/*.pkl"))
 
-for taz in tqdm(tazs):
+# for taz in tqdm(tazs):
     
-    #read in trip dict
-    trip_dict = pd.read_pickle(taz)
+#     #read in trip dict
+#     trip_dict = pd.read_pickle(taz)
 
-    #process text
-    file_path = os.path.split(taz)[-1].split('.pkl')[0]
+#     #process text
+#     file_path = os.path.split(taz)[-1].split('.pkl')[0]
 
-    #get taz name
-    start_taz = file_path.split('_')[0]
+#     #get taz name
+#     start_taz = file_path.split('_')[0]
     
-    #get start time
-    start_time = file_path.split('_',1)[1]
+#     #get start time
+#     start_time = file_path.split('_',1)[1]
 
-    #read tazs
-    tazs = gpd.read_file('C:/Users/tpassmore6/Documents/BikewaySimData/base_shapefiles/arc/Model_Traffic_Analysis_Zones_2020/Model_Traffic_Analysis_Zones_2020.shp')
-    tazs.to_crs('epsg:2240',inplace=True)
-    tazs = tazs[['FID_1','geometry']]
-    tazs['FID_1'] = tazs['FID_1'].astype(str)
+#     #read tazs
+#     tazs = gpd.read_file('C:/Users/tpassmore6/Documents/BikewaySimData/base_shapefiles/arc/Model_Traffic_Analysis_Zones_2020/Model_Traffic_Analysis_Zones_2020.shp')
+#     tazs.to_crs('epsg:2240',inplace=True)
+#     tazs = tazs[['FID_1','geometry']]
+#     tazs['FID_1'] = tazs['FID_1'].astype(str)
     
-    #each key is a taz pair
-    end_taz = set([x[1] for x in trip_dict.keys()])
+#     #each key is a taz pair
+#     end_taz = set([x[1] for x in trip_dict.keys()])
     
-    #get geo
-    end_taz = tazs[tazs['FID_1'].isin(end_taz)]
-    end_taz['start_taz'] = start_taz
-    end_taz['tup'] = list(zip(end_taz['start_taz'],end_taz['FID_1']))
+#     #get geo
+#     end_taz = tazs[tazs['FID_1'].isin(end_taz)]
+#     end_taz['start_taz'] = start_taz
+#     end_taz['tup'] = list(zip(end_taz['start_taz'],end_taz['FID_1']))
     
-    #reduce dict
-    mapping_dict = { x: trip_dict[x][2] for x in trip_dict.keys()}
+#     #reduce dict
+#     mapping_dict = { x: trip_dict[x][2] for x in trip_dict.keys()}
     
-    #add travel time
-    end_taz['transit_travel_time'] = end_taz['tup'].map(mapping_dict) 
+#     #add travel time
+#     end_taz['transit_travel_time'] = end_taz['tup'].map(mapping_dict) 
     
-    #convert datetime to minutes
-    end_taz['transit_travel_time'] = end_taz['transit_travel_time'].apply(lambda x: x.total_seconds() / 60)
+#     #convert datetime to minutes
+#     end_taz['transit_travel_time'] = end_taz['transit_travel_time'].apply(lambda x: x.total_seconds() / 60)
     
-    #clean up and export
-    end_taz = end_taz[['FID_1','transit_travel_time','geometry']]
-    end_taz.to_file(f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/bikesheds/{start_taz}.gpkg',layer=f'walk_transit_{start_time}')
+#     #clean up and export
+#     end_taz = end_taz[['FID_1','transit_travel_time','geometry']]
+#     end_taz.to_file(f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/bikesheds/{start_taz}.gpkg',layer=f'walk_transit_{start_time}')
+
+
+
 
 #%% inspect metadata
 
