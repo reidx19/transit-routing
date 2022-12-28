@@ -59,7 +59,7 @@ def check_type(item):
 # new format
 # 'src_taz','dest_taz','src_stop','dest_stop','first_leg','last_leg'
 
-def run_raptor(all_trips,impedance_col,raptor_settings):
+def run_raptor(all_trips,impedance,raptor_settings):
     print('Running raptor algorithm')
     
     #import network files
@@ -90,8 +90,16 @@ def run_raptor(all_trips,impedance_col,raptor_settings):
             #import trips file
             trips = pd.read_parquet(trip)
             
+            if raptor_settings['one_trip'] == True:
+                start = raptor_settings['start']
+                end = raptor_settings['end']
+                trips = trips.loc[trips['src_taz']==start and trips['dest_taz']==end,:]
+            
             if trips.shape[0] == 0:
-                print(f'No trips possible from {trip}')
+                if raptor_settings['one_trip'] == True:
+                    return
+                else:
+                    print(f'No trips possible from {trip}')
             else:
             
                 #get start taz name
@@ -198,18 +206,18 @@ def run_raptor(all_trips,impedance_col,raptor_settings):
                     
                     #make file name
                     time_name = f'{start_time.hour}_{start_time.minute}'
-                    flm_mode = raptor_settings['flm_mode']
+                    mode = raptor_settings['mode']
                     
                     #create new folder
-                    if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}'):
-                        os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}')
-                    if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}'):
-                        os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}')
-                    
+                    if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\trip_dicts\{taz_name}'):
+                        os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\trip_dicts\{taz_name}')
+                    if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\metadata\{taz_name}'):
+                        os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\metadata\{taz_name}')
+                        
                     #export trip dict and metadata
-                    with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\trip_dicts\{impedance_col}\{taz_name}_{time_name}_{flm_mode}.pkl','wb') as fh:
+                    with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\trip_dicts\{taz_name}\{time_name}.pkl','wb') as fh:
                         pickle.dump(trip_dict,fh)
-                    with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\metadata\{impedance_col}\{taz_name}_{time_name}_{flm_mode}.pkl','wb') as fh:
+                    with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\metadata\{taz_name}\{time_name}.pkl','wb') as fh:
                         pickle.dump(metadata,fh)
             
             # #export exclude routes
@@ -217,18 +225,48 @@ def run_raptor(all_trips,impedance_col,raptor_settings):
             #     pickle.dump(exclude_routes,fh)
     
 #make a one trip version
-# def one_trip(SOURCE,DESTINATION,D_TIME,raptor_settings):
+def one_trip(start_taz,end_taz,D_TIME,raptor_settings):
     
-#     stops_file, trips_file, stop_times_file, transfers_file, stops_dict, stoptimes_dict, footpath_dict, routes_by_stop_dict, idx_by_route_stop_dict = read_testcase(
-#         raptor_settings['NETWORK_NAME'])
-    
-    
-#     output, pareto_optimal = raptor(SOURCE, DESTINATION, D_TIME, raptor_settings['MAX_TRANSFER'], 
-#                     raptor_settings['WALKING_FROM_SOURCE'], raptor_settings['CHANGE_TIME_SEC'], raptor_settings['PRINT_ITINERARY'],
-#                     routes_by_stop_dict, stops_dict, stoptimes_dict, footpath_dict, idx_by_route_stop_dict)
 
-#     return output
+    return output
             
+#%% testing
+
+print_logo()
+
+#get route type
+route = pd.read_csv(r'GTFS/marta/route.txt')
+
+raptor_settings = {
+    'NETWORK_NAME': './marta',
+    'MAX_TRANSFER': 1,
+    'WALKING_FROM_SOURCE': 0,
+    'CHANGE_TIME_SEC': 30,
+    'PRINT_ITINERARY': 0,
+    'OPTIMIZED': 0,
+    'bike_thresh': 0.5 * 5280, #set initial biking threshold distance (from tcqsm page 5-20)
+    'bikespd': 2.5, #set assummed avg bike speed in mph
+    'first_time': datetime(2022, 11, 24, 9, 0, 0, 0), #9am
+    'end_time': datetime(2022, 11, 24, 10, 15, 0, 0), #10am
+    'timestep': timedelta(minutes=20), #in minutes 
+    'timelimit': timedelta(hours=1), # in hours
+    'impedance':'dist',
+    'mode':walk,
+    'one_trip':True,
+    'start':'553',
+    'end':'642'
+    }
+            
+impedance = raptor_settings['impedance']
+mode = raptor_settings['mode']
+trips_dir = os.fspath(rf'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/{mode}_{impedance}/trips')
+
+#selected trips
+select_tazs = ['288','553','411','1071']
+all_trips = [ trips_dir + rf'/{taz}.parquet' for taz in select_tazs]
+
+run_raptor(all_trips,impedance,raptor_settings)
+
 #%% settings
 
 print_logo()
@@ -247,21 +285,21 @@ raptor_settings = {
     'bikespd': 10, #set assummed avg bike speed in mph
     'first_time': datetime(2022, 11, 24, 9, 0, 0, 0), #9am
     'end_time': datetime(2022, 11, 24, 10, 15, 0, 0), #10am
-    'timestep': timedelta(minutes=15), #in minutes 
+    'timestep': timedelta(minutes=20), #in minutes 
     'timelimit': timedelta(hours=1), # in hours
-    'impedance_col':'dist',
-    'flm_mode':'bike'
+    'impedance':'dist',
+    'mode':'bike'
     }
             
-impedance_col = raptor_settings['impedance_col']
-flm_mode = raptor_settings['flm_mode']
-trips_dir = os.fspath(rf'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/{impedance_col}/{flm_mode}')
+impedance = raptor_settings['impedance']
+mode = raptor_settings['mode']
+trips_dir = os.fspath(rf'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/{mode}_{impedance}/trips')
 
 #selected trips
-select_tazs = ['288']#['553','411','1326','1071']
+select_tazs = ['288','553','411','1071']
 all_trips = [ trips_dir + rf'/{taz}.parquet' for taz in select_tazs]
 
-run_raptor(all_trips,impedance_col,raptor_settings)
+run_raptor(all_trips,impedance,raptor_settings)
 
 
 #%% just walking
@@ -282,20 +320,22 @@ raptor_settings = {
     'bikespd': 2.5, #set assummed avg bike speed in mph
     'first_time': datetime(2022, 11, 24, 9, 0, 0, 0), #9am
     'end_time': datetime(2022, 11, 24, 10, 15, 0, 0), #10am
-    'timestep': timedelta(minutes=15), #in minutes 
+    'timestep': timedelta(minutes=20), #in minutes 
     'timelimit': timedelta(hours=1), # in hours
-    'flm_mode': 'walk'
+    'mode': 'walk'
     }
             
 # import trips
-trips_dir = os.fspath(r'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/dist')
-impedance_col = 'dist'
+impedance = 'dist'
+mode = raptor_settings['mode']
+trips_dir = os.fspath(rf'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/{mode}_{impedance}/trips')
+
 
 #selected trips
-select_tazs = ['288']#['553','411','1326','1071']
-all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/dist/walk/{taz}.parquet' for taz in select_tazs]
+select_tazs = ['288','553','411','1071']#1326
+all_trips = [trips_dir + rf'\{taz}.parquet' for taz in select_tazs]
 
-run_raptor(all_trips,impedance_col,raptor_settings)
+run_raptor(all_trips,impedance,raptor_settings)
 
 
 #%% get bikesheds
@@ -303,9 +343,9 @@ run_raptor(all_trips,impedance_col,raptor_settings)
 # import pandas as pd
 # import os
 
-# impedance_col = 'dist'
+# impedance = 'dist'
 # trips_dir = os.fspath('C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts')
-# tazs= glob.glob(os.path.join(trips_dir,rf"{impedance_col}/*.pkl"))
+# tazs= glob.glob(os.path.join(trips_dir,rf"{impedance}/*.pkl"))
 
 # for taz in tqdm(tazs):
     
@@ -365,4 +405,4 @@ run_raptor(all_trips,impedance_col,raptor_settings)
 # all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/imp_dist\\{taz}.parquet' for taz in select_tazs]
 
 
-# run_raptor(all_trips,impedance_col,raptor_settings)
+# run_raptor(all_trips,impedance,raptor_settings)

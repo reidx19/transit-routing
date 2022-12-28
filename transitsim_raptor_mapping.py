@@ -4,7 +4,7 @@ Runs the query algorithm
 import os
 from pathlib import Path
 user_directory = os.fspath(Path.home())
-file_directory = r"\Documents\GitHub\transit-routing" #directory of bikewaysim outputs
+file_directory = r"\Documents\TransitSimData\Data" #directory of bikewaysim outputs
 homeDir = user_directory+file_directory
 os.chdir(homeDir)
 
@@ -38,31 +38,37 @@ def check_type(item):
         item = str(item)      
     return item
 
+#get paths geo
+#take in key and get edges, outputs edge
+def get_path_geo(all_paths,key,links):
+    #get geo (this takes a bit, try to speed up?)
+    #print(key)
+    #key = ('30464794601', '30464794601')
+    if len(all_paths[key]) > 1:
+        edge = links[links['A_B'].isin(set(all_paths[key]))].dissolve().geometry.item()
+    else:
+        edge = None
+    return edge
 
-def map_routes(selected_trips,impedance_col,snapped_tazs,snapped_stops,shape_map):
+
+def map_routes(selected_trips,impedance,snapped_tazs,snapped_stops,shape_map,mode):
 
     #import bike path geo
-    with open(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{impedance_col}_all_paths.pkl','rb') as fh:
+    with open(rf'Outputs\{mode}_{impedance}\all_paths.pkl','rb') as fh:
         all_paths = pickle.load(fh)
+    
+    #TODO bring in links (make this input)
+    links = gpd.read_file(r'C:/Users/tpassmore6/Documents/BikewaySimData/to_conflate/marta.gpkg',layer='conflated_links')
     
     for selected_trip in selected_trips:
     
+        trip_time = str.split(str.split(selected_trip,'\\')[-1],'.pkl')[0]
+    
         with open(selected_trip,'rb') as fh:
             trip_dict = pickle.load(fh)
-    
-        #process text
-        file_path = os.path.split(selected_trip)[-1].split('.pkl')[0]
+            
+        print(f'Mapping {selected_trip}')
         
-        #get taz name
-        start_taz = file_path.split('_')[0]
-        
-        #get start time
-        trip_time = file_path.split('_')[1] + '_' + file_path.split('_')[2]
-        
-        #flm mode
-        flm_mode = file_path.split('_')[3]
-    
-    
         for x in tqdm(trip_dict.keys()):
             start_taz = check_type(x[0])
             end_taz = check_type(x[1])
@@ -79,12 +85,14 @@ def map_routes(selected_trips,impedance_col,snapped_tazs,snapped_stops,shape_map
             #get bike edge if available
             #also get impedance values
             if (start_tazN,start_transitN) in all_paths.keys():
-                bike_edge1 = all_paths[(start_tazN,start_transitN)]
+                #bike_edge1 = all_paths[(start_tazN,start_transitN)]
+                bike_edge1 = get_path_geo(all_paths,(start_tazN,start_transitN),links)
             else:
                 bike_edge1 = None
             
             if (end_transitN,end_tazN) in all_paths.keys():
-                bike_edge2 = all_paths[(end_transitN,end_tazN)]
+                #bike_edge2 = all_paths[(end_transitN,end_tazN)]
+                bike_edge2 = get_path_geo(all_paths,(end_transitN,end_tazN),links)
             else:
                 bike_edge2 = None
                 
@@ -167,15 +175,12 @@ def map_routes(selected_trips,impedance_col,snapped_tazs,snapped_stops,shape_map
                     else:
                         line = shape.loc[end_point_snapped:start_point_snapped]
                         
-                    #get linestring
-                    line = LineString(line['geometry'].to_list())
-                    
-                        #append to candidate list
-                        #candidate_lines.append(line)
-                        
-                    #get whatever the longest segment is
-                    #candidate_lines = gpd.GeoSeries(candidate_lines,crs='epsg:2240')
-                    #line = #candidate_lines.loc[candidate_lines.length.idxmax()]
+                    #check length
+                    if len(line['geometry'].to_list()) > 1:
+                        #get linestring
+                        line = LineString(line['geometry'].to_list())
+                    else:
+                        line = None
                     
                 else:
                     route_types.append('walking')
@@ -223,11 +228,10 @@ def map_routes(selected_trips,impedance_col,snapped_tazs,snapped_stops,shape_map
             trip_name = str(x[0]) + '_' + str(x[1])
         
             #create new folder
-            if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\mapped\{start_taz}\{impedance_col}'):
-                os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\mapped\{start_taz}\{impedance_col}') 
+            if not os.path.exists(rf'Outputs\{mode}_{impedance}\mapped\{start_taz}'):
+                os.makedirs(rf'Outputs\{mode}_{impedance}\mapped\{start_taz}') 
             
-            gdf.to_file(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\mapped\{start_taz}\{impedance_col}\{trip_name}.gpkg',layer=f'{flm_mode}_{trip_time}')
-        #gdf.to_file(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\mapped\testing.gpkg',layer=trip_name,driver='GPKG')
+            gdf.to_file(rf'Outputs\{mode}_{impedance}\mapped\{start_taz}\{trip_name}.gpkg',layer=f'{trip_time}')
 
 #%% run
 
@@ -235,17 +239,17 @@ def map_routes(selected_trips,impedance_col,snapped_tazs,snapped_stops,shape_map
 #NETWORK_NAME = './marta'
 
 #get route type
-route = pd.read_csv(r'GTFS/marta/route.txt')
+route = pd.read_csv(r'C:/Users/tpassmore6/Documents/GitHub/transit-routing/GTFS/marta/route.txt')
 
 #get stops
-stops_file = pd.read_csv('GTFS/marta/stops.txt')
+stops_file = pd.read_csv('C:/Users/tpassmore6/Documents/GitHub/transit-routing/GTFS/marta/stops.txt')
 stops_file = gpd.GeoDataFrame(stops_file, geometry=gpd.points_from_xy(stops_file['stop_lon'], stops_file['stop_lat']), crs='epsg:4326')
 stops_file.to_crs('epsg:2240',inplace=True)
 
-#get shapes from partrigh
+#get shapes from partrige
 import partridge as ptg
 
-path = r'marta_gtfs.zip'#'gtfs.zip'
+path = r'C:/Users/tpassmore6/Documents/GitHub/transit-routing/marta_gtfs.zip'
 
 _date = date(2022, 11, 24)
 
@@ -267,25 +271,26 @@ shape_map = route.merge(feed.trips[['route_id','shape_id']], on='route_id')[['sh
 shape_map['new_route_id'] = shape_map['new_route_id'].astype(str)
 
 #import snapped tazs and stops
-with open(r'C:\Users\tpassmore6\Documents\TransitSimData\Data\snapped_tazs.pkl','rb') as fh:
+with open(r'snapped_tazs.pkl','rb') as fh:
     snapped_tazs = pickle.load(fh)
-with open(r'C:\Users\tpassmore6\Documents\TransitSimData\Data\snapped_stops.pkl','rb') as fh:
+with open(r'snapped_stops.pkl','rb') as fh:
     snapped_stops = pickle.load(fh)
 
-
-impedance_col = 'dist'
+impedance = 'dist'
 #select_tazs = ['448','411','1272','225']
-trips_dir = os.fspath('C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts')
-all_trips= glob.glob(os.path.join(trips_dir,rf"{impedance_col}/*.pkl"))
-
-
-#all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts/dist\\{taz}.pkl' for taz in select_tazs]
-map_routes(all_trips,impedance_col,snapped_tazs,snapped_stops,shape_map)
-
-# impedance_col = 'imp_dist'
-# select_tazs = ['448','411','1272','225']
-# all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts/dist\\{taz}.pkl' for taz in select_tazs]
-# map_routes(all_trips,impedance_col,snapped_tazs,snapped_stops,shape_map)
 
 #%%
 
+all_trips= glob.glob(r'Outputs\bike_dist\trip_dicts\*\*.pkl')
+
+#all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts/dist\\{taz}.pkl' for taz in select_tazs]
+map_routes(all_trips,impedance,snapped_tazs,snapped_stops,shape_map,mode='bike')
+
+# impedance = 'imp_dist'
+# select_tazs = ['448','411','1272','225']
+# all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts/dist\\{taz}.pkl' for taz in select_tazs]
+# map_routes(all_trips,impedance,snapped_tazs,snapped_stops,shape_map)
+
+#%%
+all_trips= glob.glob(r'Outputs\walk_dist\trip_dicts\*\*.pkl')
+map_routes(all_trips,impedance,snapped_tazs,snapped_stops,shape_map,mode='walk')
