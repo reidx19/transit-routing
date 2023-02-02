@@ -246,7 +246,7 @@ stops_file = pd.read_csv('C:/Users/tpassmore6/Documents/GitHub/transit-routing/G
 stops_file = gpd.GeoDataFrame(stops_file, geometry=gpd.points_from_xy(stops_file['stop_lon'], stops_file['stop_lat']), crs='epsg:4326')
 stops_file.to_crs('epsg:2240',inplace=True)
 
-#get shapes from partrige
+#get MARTA shapes from partrige
 import partridge as ptg
 
 path = r'C:/Users/tpassmore6/Documents/GitHub/transit-routing/marta_gtfs.zip'
