@@ -276,21 +276,16 @@ with open(r'snapped_tazs.pkl','rb') as fh:
 with open(r'snapped_stops.pkl','rb') as fh:
     snapped_stops = pickle.load(fh)
 
-impedance = 'dist'
-#select_tazs = ['448','411','1272','225']
-
 #%%
+impedance = 'dist'
+modes = ['walk','bike']
 
-all_trips= glob.glob(r'Outputs\bike_dist\trip_dicts\*\*.pkl')
+for mode in modes:
+    all_trips= glob.glob(rf'Outputs\{mode}_{impedance}\trip_dicts\*\*.pkl')
+    map_routes(all_trips,impedance,snapped_tazs,snapped_stops,shape_map,mode)
 
-#all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts/dist\\{taz}.pkl' for taz in select_tazs]
-map_routes(all_trips,impedance,snapped_tazs,snapped_stops,shape_map,mode='bike')
 
-# impedance = 'imp_dist'
-# select_tazs = ['448','411','1272','225']
-# all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts/dist\\{taz}.pkl' for taz in select_tazs]
-# map_routes(all_trips,impedance,snapped_tazs,snapped_stops,shape_map)
 
 #%%
 all_trips= glob.glob(r'Outputs\walk_dist\trip_dicts\*\*.pkl')
-map_routes(all_trips,impedance,snapped_tazs,snapped_stops,shape_map,mode='walk')
+map_routes(all_trips,'dist',snapped_tazs,snapped_stops,shape_map,mode='walk')
