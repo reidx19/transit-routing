@@ -8,7 +8,7 @@ file_directory = r"\Documents\GitHub\transit-routing" #directory of bikewaysim o
 homeDir = user_directory+file_directory
 os.chdir(homeDir)
 
-#%%
+#%% import all neccessary modules
 
 from RAPTOR.hypraptor import hypraptor
 from RAPTOR.one_to_many_rraptor import onetomany_rraptor
@@ -30,13 +30,13 @@ from tqdm import tqdm
 import time
 import glob
 
-#suppress error message
+#suppress error messages
 import warnings
 from shapely.errors import ShapelyDeprecationWarning
 warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning) 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-
+#used for creating departure times
 def get_times(first_time,end_time,timestep):
     
     times = [first_time]
@@ -48,7 +48,7 @@ def get_times(first_time,end_time,timestep):
         
     return times
 
-#make sure thing is str
+#makes sure thing is str (nessessary becuase taz ids will get converted to numeric)
 def check_type(item):
     if type(item) == float:
         item = str(int(item))
@@ -56,8 +56,12 @@ def check_type(item):
         item = str(item)      
     return item
 
-# new format
-# 'src_taz','dest_taz','src_stop','dest_stop','first_leg','last_leg'
+#input format of parquet files
+#'src_taz' = starting taz
+#'dest_taz' = ending taz
+#'src_stop' = potential starting transit stop
+#'dest_stop' = potential ending transit stop
+#'first_leg' = walking/biking distance to transit stop (used for determining arrival time)
 
 def run_raptor(all_trips,impedance,raptor_settings):
     print('Running raptor algorithm')
@@ -105,6 +109,7 @@ def run_raptor(all_trips,impedance,raptor_settings):
                 
                 #check if filepath exists already
                 if not os.path.exists(
+                        #TODO change this to filepath
                         rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\trip_dicts\{taz_name}\{time_name}.pkl'
                         ):
                 
@@ -210,6 +215,7 @@ def run_raptor(all_trips,impedance,raptor_settings):
                         metadata = {'not_possible':not_possible,'run_time':run_time_transit}
                         
                         #create new folder
+                        #TODO change filepath formats
                         if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\trip_dicts\{taz_name}'):
                             os.makedirs(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\trip_dicts\{taz_name}')
                         if not os.path.exists(rf'C:\Users\tpassmore6\Documents\TransitSimData\Data\Outputs\{mode}_{impedance}\metadata\{taz_name}'):
@@ -462,73 +468,3 @@ select_tazs = ['288','553','411','1071']#1326
 all_trips = [trips_dir + rf'\{taz}.parquet' for taz in select_tazs]
 
 run_raptor(all_trips,impedance,raptor_settings)
-
-
-#%% get bikesheds
-#left off here
-# import pandas as pd
-# import os
-
-# impedance = 'dist'
-# trips_dir = os.fspath('C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trip_dicts')
-# tazs= glob.glob(os.path.join(trips_dir,rf"{impedance}/*.pkl"))
-
-# for taz in tqdm(tazs):
-    
-#     #read in trip dict
-#     trip_dict = pd.read_pickle(taz)
-
-#     #process text
-#     file_path = os.path.split(taz)[-1].split('.pkl')[0]
-
-#     #get taz name
-#     start_taz = file_path.split('_')[0]
-    
-#     #get start time
-#     start_time = file_path.split('_',1)[1]
-
-#     #read tazs
-#     tazs = gpd.read_file('C:/Users/tpassmore6/Documents/BikewaySimData/base_shapefiles/arc/Model_Traffic_Analysis_Zones_2020/Model_Traffic_Analysis_Zones_2020.shp')
-#     tazs.to_crs('epsg:2240',inplace=True)
-#     tazs = tazs[['FID_1','geometry']]
-#     tazs['FID_1'] = tazs['FID_1'].astype(str)
-    
-#     #each key is a taz pair
-#     end_taz = set([x[1] for x in trip_dict.keys()])
-    
-#     #get geo
-#     end_taz = tazs[tazs['FID_1'].isin(end_taz)]
-#     end_taz['start_taz'] = start_taz
-#     end_taz['tup'] = list(zip(end_taz['start_taz'],end_taz['FID_1']))
-    
-#     #reduce dict
-#     mapping_dict = { x: trip_dict[x][2] for x in trip_dict.keys()}
-    
-#     #add travel time
-#     end_taz['transit_travel_time'] = end_taz['tup'].map(mapping_dict) 
-    
-#     #convert datetime to minutes
-#     end_taz['transit_travel_time'] = end_taz['transit_travel_time'].apply(lambda x: x.total_seconds() / 60)
-    
-#     #clean up and export
-#     end_taz = end_taz[['FID_1','transit_travel_time','geometry']]
-#     end_taz.to_file(f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/bikesheds/{start_taz}.gpkg',layer=f'walk_transit_{start_time}')
-
-
-
-
-#%% inspect metadata
-
-
-
-#%% imp version
-
-# # import trips
-# trips_dir = os.fspath(r'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/imp_dist')
-
-# #selected trips
-# select_tazs = ['448','411','1272','225']
-# all_trips = [f'C:/Users/tpassmore6/Documents/TransitSimData/Data/Outputs/trips/imp_dist\\{taz}.parquet' for taz in select_tazs]
-
-
-# run_raptor(all_trips,impedance,raptor_settings)
