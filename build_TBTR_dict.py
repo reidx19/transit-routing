@@ -1,21 +1,17 @@
 """
 Builds data structure for TBTR related algorithms
 """
-from itertools import chain
-import os
 import multiprocessing
-from random import shuffle
-from time import time as time_measure
+import sys
 # print(os.getcwd())
 # os.chdir(os.path.dirname(os.getcwd()))
 # os.chdir('D:\\prateek\\research\\indivisual\\TB2')
 from collections import defaultdict
+from itertools import chain
 from multiprocessing import Pool
+from random import shuffle
+from time import time as time_measure
 
-import pandas as pd
-from tqdm import tqdm
-import sys
-import gtfs_loader
 from miscellaneous_func import *
 
 
@@ -68,7 +64,7 @@ def algorithm1_parallel(route_details: tuple) -> list:
     return trip_transfer_list
 
 
-def algorithm2_parallel(trip_transfer_: list) :
+def algorithm2_parallel(trip_transfer_: list) -> list:
     """
     Removes trip transfers which cause U-turns.
 
@@ -81,7 +77,7 @@ def algorithm2_parallel(trip_transfer_: list) :
     """
     try:
         from_stop_dep, to_stop_det = stoptimes_dict[trip_transfer_[1]][trip_transfer_[2]][trip_transfer_[5]], \
-                     stoptimes_dict[trip_transfer_[3]][trip_transfer_[4]][trip_transfer_[6]]
+            stoptimes_dict[trip_transfer_[3]][trip_transfer_[4]][trip_transfer_[6]]
         if from_stop_dep[0] == to_stop_det[0] and from_stop_dep[0] <= to_stop_det[0]:
             return trip_transfer_[0]
         else:
@@ -90,12 +86,12 @@ def algorithm2_parallel(trip_transfer_: list) :
         return []
 
 
-def algorithm3_parallel(trip_details: tuple)-> list:
+def algorithm3_parallel(trip_details: tuple) -> list:
     """
     Removes trip transfers that are not part of any optimal journey
 
     Args:
-        trip_details: tuple of form: (route_id, trip_id, trip)
+        trip_details (tuple): tuple of form: (route_id, trip_id, trip)
 
     Returns:
         list of non-optimal trip transfers.
@@ -133,22 +129,40 @@ def algorithm3_parallel(trip_details: tuple)-> list:
     return removed_trans
 
 
+def take_inputs() -> tuple:
+    '''
+    Takes the required inputs for building TBTR preprocessing
+
+    Returns:
+        breaker (str): string
+        CORES (int): Number of codes to be used
+        change_time (int): change-time in seconds.
+        GENERATE_LOGFILE (int): 1 to redirect and save a log file. Else 0
+        USE_PARALlEL (int): 1 for parallel and 0 for serial
+    '''
+    breaker = "________________________________"
+    print("Building trip-transfers dict for TBTR. Enter following parameters.\n ")
+    USE_PARALlEL = int(input("TBTR can be built in parallel. Enter 1 to use multiprocessing. Else press 0. Example: 0\n: "))
+    CORES = 0
+    if USE_PARALlEL != 0:
+        CORES = int(input(f"Enter number of CORES (>=1). \nAvailable CORES (logical and physical):  {multiprocessing.cpu_count()}\n: "))
+    change_time = pd.to_timedelta(0, unit='seconds')
+    GENERATE_LOGFILE = int(input(f"Press 1 to redirect output to a log file in logs folder. Else press 0. Example: 0\n: "))
+
+    return breaker, CORES, change_time, GENERATE_LOGFILE, USE_PARALlEL
+
+
 if __name__ == "__main__":
     with open(f'parameters_entered.txt', 'rb') as file:
         parameter_files = pickle.load(file)
-    BUILD_TRANSFER, NETWORK_NAME, BUILD_TBTR_FILES = parameter_files
-    if BUILD_TBTR_FILES==1:
-        # NETWORK_NAME = 'uk'
+    BUILD_TRANSFER, NETWORK_NAME, BUILD_TBTR_FILES, BUILD_TRANSFER_PATTERNS_FILES, BUILD_CSA = parameter_files
+    if BUILD_TBTR_FILES == 1:
         # NETWORK_NAME = 'germany'
-        breaker = "________________________________"
+        breaker, CORES, change_time, GENERATE_LOGFILE, USE_PARALlEL = take_inputs()
         print(breaker)
-        stops_file, trips_file, stop_times_file, transfers_file, stops_dict, stoptimes_dict, footpath_dict, routes_by_stop_dict, idx_by_route_stop_dict = read_testcase(
+        stops_file, trips_file, stop_times_file, transfers_file, stops_dict, stoptimes_dict, footpath_dict, routes_by_stop_dict, idx_by_route_stop_dict, routesindx_by_stop_dict = read_testcase(
             NETWORK_NAME)
         # inf_time = pd.to_datetime("today").round(freq='H') + pd.to_timedelta("365 day")
-        print("Building trip-transfers dict for TBTR. Enter following parameters.\n ")
-        CORES = int(input(f"trip-transfers can be build in parallel. Enter number of CORES (1 for serial). \nAvailable CORES (logical and physical):  {multiprocessing.cpu_count()}\n: "))
-        change_time = pd.to_timedelta(0, unit='seconds')
-        GENERATE_LOGFILE = int(input(f"Press 1 to redirect output to a log file in logs folder. Else press 0\n: "))
         # GENERATE_LOGFILE = 1
         if GENERATE_LOGFILE == 1:
             if not os.path.exists(f'./logs/.'):
@@ -157,16 +171,21 @@ if __name__ == "__main__":
         print(f"Network: {NETWORK_NAME}")
         print(f'CORES used ={CORES}')
         print(breaker)
+
         ########Algorithm 1
         print("Running Algorithm 1")
-        route_details = list(stoptimes_dict.items())
-        shuffle(route_details)
+        route_details_list = list(stoptimes_dict.items())
+        shuffle(route_details_list)
         start = time_measure()
-        with Pool(CORES) as pool:
-            result = pool.map(algorithm1_parallel, route_details)
+        if USE_PARALlEL==1:
+            with Pool(CORES) as pool:
+                result = pool.map(algorithm1_parallel, route_details_list)
+        else:
+            result = [algorithm1_parallel(route_details) for route_details in route_details_list]
         A1_time = time_measure() - start
         Transfer_set_db = pd.DataFrame(list(chain(*result)), columns=["from_Trip", "from_stop_index", "to_trip", "to_stop_index"])
         print(breaker)
+
         ########Algorithm 2
         print("Running Algorithm 2")
         Transfer_set_db_temp = Transfer_set_db.reset_index()
@@ -177,8 +196,11 @@ if __name__ == "__main__":
         Transfer_set_db_temp.to_stop_index = Transfer_set_db_temp.to_stop_index + 1
         Transfer_set_db_temp = Transfer_set_db_temp[['index', 'from_routeid', 'from_tid', 'to_routeid', 'to_tid', 'from_stop_index', 'to_stop_index']]
         start = time_measure()
-        with Pool(CORES) as pool:
-            U_Turns_list = pool.map(algorithm2_parallel, Transfer_set_db_temp.values.tolist())
+        if USE_PARALlEL==1:
+            with Pool(CORES) as pool:
+                U_Turns_list = pool.map(algorithm2_parallel, Transfer_set_db_temp.values.tolist())
+        else:
+            U_Turns_list = [algorithm2_parallel(trip_transfer_) for trip_transfer_ in Transfer_set_db_temp.values.tolist()]
         A2_time = time_measure() - start
         U_Turns_list = [x for x in U_Turns_list if x]
         Transfer_set = Transfer_set_db.drop(U_Turns_list).reset_index(drop=True)
@@ -207,8 +229,11 @@ if __name__ == "__main__":
 
         init_tans = sum([len(x) for x in trip_transfer_dict.values()])
         start = time_measure()
-        with Pool(CORES) as pool:
-            non_optimal_trans = pool.map(algorithm3_parallel, trip_list)
+        if USE_PARALlEL==1:
+            with Pool(CORES) as pool:
+                non_optimal_trans = pool.map(algorithm3_parallel, trip_list)
+        else:
+            non_optimal_trans = [algorithm3_parallel(trip_details) for trip_details in trip_list]
         A3_time = time_measure() - start
         for route_level_turns in non_optimal_trans:
             for tid, trans in route_level_turns:
@@ -230,7 +255,7 @@ if __name__ == "__main__":
                 if x[0] not in trip_transfer_dict_new[tid].keys():
                     trip_transfer_dict_new[tid][x[0]] = []
                 trip_transfer_dict_new[tid][x[0]].append((x[1], x[2]))
-        #Added [] for every stop of key (or cast it as default dict to avoid error keyerror in TBTR code)
+        # Added [] for every stop of key (or cast it as default dict to avoid error keyerror in TBTR code)
         for tid in trip_transfer_dict_new.keys():
             numberofstops = set(range(len(stops_dict[int(tid.split('_')[0])])))
             keys_present = set(trip_transfer_dict_new[tid].keys())
@@ -244,6 +269,9 @@ if __name__ == "__main__":
         if GENERATE_LOGFILE == 1: sys.stdout.close()
 
         """
+        ###############################
+        Depreciated functions
+        ###############################
         def remove_Uturns(stop_times_file, change_time, Transfer_set_db):
             U_turns = Transfer_set_db.reset_index()
             U_turns.from_stop_index = U_turns.from_stop_index - 1
