@@ -143,9 +143,8 @@ def post_processing(DESTINATION: int, pi_label: dict, PRINT_ITINERARY: int, labe
         if PRINT_ITINERARY == 1:
             _print_Journey_legs(pareto_set)
         
-        edge_list = create_edgelist(pareto_set)
         #        _save_routesExplored(save_routes, routes_exp)
-        return rounds_inwhich_desti_reached, trip_set, rap_out, edge_list
+        return rounds_inwhich_desti_reached, trip_set, rap_out, pareto_set
 
 
 def _print_Journey_legs(pareto_journeys: list) -> None:
@@ -171,32 +170,6 @@ def _print_Journey_legs(pareto_journeys: list) -> None:
                     f'from {leg[1]} board at {leg[0].time()} and get down on {leg[2]} at {leg[3].time()} along {leg[-1]}')
         print("####################################")
     return None
-
-def create_edgelist(pareto_journeys):
-    '''
-    Prints journey in correct format. Parent Function: post_processing
-    Args:
-        pareto_journeys (list): pareto optimal set.
-    Returns:
-        None
-    '''
-    # list_of_tups = []
-    # for _, journey in pareto_journeys:
-    #     for leg in journey:
-    #         if leg[0] == 'walking':
-    #             tup = (leg[1],leg[2],leg[3].total_seconds(),'walking')
-    #             #print(f'from {leg[1]} walk till  {leg[2]} for {leg[3].total_seconds()} seconds')
-    #         else:
-    #             tup = (leg[1],leg[2],leg[-1],leg[0],leg[3],'transit')
-    #             #print(
-    #                 #f'from {leg[1]} board at {leg[0].time()} and get down on {leg[2]} at {leg[3].time()} along {leg[-1]}')
-    #         list_of_tups.append(tup)
-        
-    #     #remove last tuple if it's walking
-    #     if list_of_tups[-1][-1] == 'walking':
-    #         list_of_tups = list_of_tups[:-1]
-    #     #print("####################################")
-    return pareto_journeys
 
 def post_processing_onetomany_rraptor(DESTINATION_LIST: list, pi_label: dict, PRINT_ITINERARY: int, label: dict, OPTIMIZED: int) -> list:
     '''
