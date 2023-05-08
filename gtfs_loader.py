@@ -45,6 +45,7 @@ def load_all_db(NETWORK_NAME: str):
     """
     import pandas as pd
     path = f"./GTFS/{NETWORK_NAME}"
+    #TODO not sure why this stopped working, changing to just be the full path
     stops_file = pd.read_csv(f'{path}/stops.txt', sep=',').sort_values(by=['stop_id']).reset_index(drop=True)
     trips_file = pd.read_csv(f'{path}/trips.txt', sep=',')
     stop_times_file = pd.read_csv(f'{path}/stop_times.txt', sep=',')
